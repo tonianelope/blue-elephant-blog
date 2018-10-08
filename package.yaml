@@ -25,6 +25,11 @@ dependencies:
 - blaze-html
 - blaze-markup
 - text
+- directory
+- filepath
+- time
+- hashable
+
 
 library:
   source-dirs: src
