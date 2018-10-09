@@ -21,8 +21,7 @@ import qualified Web.Scotty as S
 
 data Page = Home | AllPosts | NewPost | OnePost | LogIn deriving Eq
 data Post = Post
-  { id    :: Int
-  , date  :: UTCTime
+  { date  :: UTCTime
   , title :: String
   , body  :: String
   } deriving (Read, Show)
@@ -31,7 +30,7 @@ data PageConfig = PageConfig Page Text Text
 homePage     = PageConfig Home "/" "Home"
 allPostsPage = PageConfig AllPosts "/posts" "All Posts"
 newPostPage  = PageConfig NewPost "/new-post" "New Post"
-postPage     = PageConfig OnePost "/posts/:postID" "Post page"
+postPage title   = PageConfig OnePost "/posts/:postID" title
 loginPage    = PageConfig LogIn "/login" "Log In"
 
 pages = [ homePage
@@ -51,10 +50,6 @@ main = do
 pagePath :: PageConfig -> S.RoutePattern
 pagePath (PageConfig _ a _) = S.capture $ unpack a
 
-postPath :: Post -> String
-postPath (Post i tm t b) = postDir </> (tUnix tm) <> (show i)
-
-
 mkPage :: PageConfig -> Html -> S.ActionM ()
 mkPage (PageConfig page _ title) body =
   S.html . renderHtml $ do
@@ -68,22 +63,12 @@ mkPage (PageConfig page _ title) body =
 
 header :: Page -> Html
 header page =
-  H.header $ H.nav $ mconcat $ fmap (toLink page) pages
-  where
-    toLink currentLoc (PageConfig loc path text) =
-      H.a
-        ! A.href (textValue path)
-        ! A.class_ (if loc==currentLoc then "current" else "")
-        $ toHtml text
+  H.header $ H.nav $ mconcat $ fmap (linkPage page) pages
 
 pToHtml :: Post -> Html
-pToHtml p@(Post i time title body) =
+pToHtml p@(Post time title body) =
   H.div $ do
-    H.h2 $ do
-      H.a
-      --TODO fix: has an extra /posts/
-        ! A.href (textValue (pack $ "/" <> postPath p))
-        $ toHtml title
+    H.h2 $ linkPost p
     H.p
       ! A.class_ "date"
       $ toHtml $ formatTime defaultTimeLocale "%Y-%m-%d" time
@@ -106,54 +91,78 @@ newPostHtml =
 tUnix :: FormatTime t => t -> String
 tUnix = formatTime defaultTimeLocale "%s"
 
-readPosts :: [FilePath] -> IO [Post]
-readPosts = mapM (fmap read . readFile)
-
 routes :: S.ScottyM()
 routes = do
   S.get (pagePath homePage) $ do
-    posts <- liftIO $ do
-      files <- listDirectory postDir
-      wd <- getCurrentDirectory
-      posts <- withCurrentDirectory (wd </> postDir) . readPosts $ files
-      return $ take 5 $ sortBy (comparing date) posts
-    -- postAmt <- liftIO $ fmap read $ readFileOr idFileName "0"
-    -- posts <- liftIO $ readPosts [0..(postAmt - 1)]
+    posts <- liftIO $ readPosts
     mkPage homePage $ do
       H.h1 "Posts"
       mapM_ pToHtml posts
 
+  --TODO only avaulable on login 
   S.get (pagePath newPostPage) $ do
-    mkPage newPostPage $ do
-      H.h1 "New post"
-      H.form ! A.method "post" $ do
-        H.textarea ! A.name "title" $ "Blog post Title"
-        H.br
-        H.textarea ! A.name "body" $ "Blog post Body"
-        H.br
-        H.input ! A.type_ "submit" ! A.value "Submit post"
+    mkPage newPostPage $ newPostHtml
 
   S.post (pagePath newPostPage) $ do
     title <- S.param "title"
     body <- S.param "body"
-    -- identifier <- liftIO $ fmap read $ readFile idFileName
     time <- liftIO $ getCurrentTime
-    let id = hash $ title
-        p = Post id time title body
-    -- liftIO $ writeFile idFileName (show (identifier + 1))
-    liftIO $ writeFile (postPath p) (show p)
+    let p = Post time title body
+    liftIO $ savePost p
     S.html .renderHtml $ do
       H.h1 $ "Success!!! "
 
-  -- S.get (pagePath posts) $ do
-  -- TODO all posts
+  -- TODO make list 
+  S.get (pagePath allPostsPage) $ do
+    posts <- liftIO $ readPosts
+    mkPage allPostsPage $ do
+      H.h1 "All posts"
+      mapM_ linkPost posts
 
-  S.get (pagePath postPage) $ do
+  S.get (pagePath $ postPage "") $ do
     postID <- S.param "postID"
     liftIO $ print postID
-    post <- liftIO $ do
-       wd <- getCurrentDirectory
-       post <- withCurrentDirectory (wd </> postDir) . readPosts $ [postID]
-       return post
-    mkPage postPage $ do
-      mapM_ pToHtml post
+    post <- liftIO $ readPost postID
+    mkPage (postPage "Test") $ do
+      pToHtml post
+
+  S.get (pagePath loginPage) $ do
+    mkPage loginPage $ H.p "nothing here"
+
+savePost :: Post -> IO ()
+savePost p= do
+  withPostDir $ writeFile (postId p) (show p)
+
+postId :: Post -> String
+postId (Post time title body) =
+  show $ hash title
+
+
+readPosts :: IO [Post]
+readPosts = do
+  files <- listDirectory postDir
+  mapM readPost files
+
+-- TODO error handeling check file exists
+readPost :: FilePath -> IO Post
+readPost = withPostDir . fmap read . readFile
+
+linkPost :: Post -> Html
+linkPost p@(Post _ title _) =
+  H.a
+    ! A.href (textValue $ pack $ "/posts/" <> postId p)
+    $ toHtml title
+
+linkPage :: Page -> PageConfig -> Html
+linkPage currentPage (PageConfig page path text) =
+      H.a
+        ! A.href (textValue path)
+        ! A.class_ (if page == currentPage then "current" else "")
+        $ toHtml text
+
+withPostDir :: IO a -> IO a
+withPostDir a = do
+  cd <- getCurrentDirectory
+  print cd
+  --abs <- makeAbsolute(postDir
+  withCurrentDirectory (cd </> postDir) $ a
