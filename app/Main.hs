@@ -7,7 +7,7 @@ import Data.List
 import Data.Monoid
 import Data.Ord
 import Data.String
-import Data.Text (unpack, Text)
+import Data.Text (unpack, pack, Text)
 import Data.Time
 import Data.Time.Format
 import System.Directory
@@ -19,7 +19,7 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import qualified Web.Scotty as S
 
-data Page = Home | NewPost | LogIn deriving Eq
+data Page = Home | AllPosts | NewPost | OnePost | LogIn deriving Eq
 data Post = Post
   { id    :: Int
   , date  :: UTCTime
@@ -27,7 +27,19 @@ data Post = Post
   , body  :: String
   } deriving (Read, Show)
 
-idFileName = "./idfile"
+data PageConfig = PageConfig Page Text Text
+homePage     = PageConfig Home "/" "Home"
+allPostsPage = PageConfig AllPosts "/posts" "All Posts"
+newPostPage  = PageConfig NewPost "/new-post" "New Post"
+postPage     = PageConfig OnePost "/posts/:postID" "Post page"
+loginPage    = PageConfig LogIn "/login" "Log In"
+
+pages = [ homePage
+        , allPostsPage
+        , newPostPage
+        , loginPage
+        ]
+
 postDir = "posts"
 
 main :: IO ()
@@ -36,18 +48,12 @@ main = do
   putStrLn "Starting Server..."
   S.scotty 3000 routes
 
-data PageConfig = PageConfig Page Text Text
-homePage    = PageConfig Home "/" "Home"
-newPostPage = PageConfig NewPost "/new-post" "New Post"
-loginPage   = PageConfig LogIn "/login" "Log In"
-
 pagePath :: PageConfig -> S.RoutePattern
 pagePath (PageConfig _ a _) = S.capture $ unpack a
 
-pages = [ homePage
-        , newPostPage
-        , loginPage
-        ]
+postPath :: Post -> String
+postPath (Post i tm t b) = postDir <> "/" <> (tUnix tm) <> (show i)
+
 
 mkPage :: PageConfig -> Html -> S.ActionM ()
 mkPage (PageConfig page _ title) body =
@@ -60,18 +66,6 @@ mkPage (PageConfig page _ title) body =
         header page
         body
 
---readPosts :: [Int] -> IO ([Post])
---readPosts = mapM (\id -> fmap read $ readFile $ blogFileName <> show id)
---readPosts = getDirectoryContents postDir
-readPosts :: [FilePath] -> IO [Post]
-readPosts = mapM (fmap read . readFile)
-
-pToHtml :: Post -> Html
-pToHtml (Post i time title body) =
-  H.div $ do
-    H.h1 $ H.toHtml title
-    H.p $ H.toHtml body
-
 header :: Page -> Html
 header page =
   H.header $ H.nav $ mconcat $ fmap (toLink page) pages
@@ -81,6 +75,19 @@ header page =
         ! A.href (textValue path)
         ! A.class_ (if loc==currentLoc then "current" else "")
         $ toHtml text
+
+pToHtml :: Post -> Html
+pToHtml p@(Post i time title body) =
+  H.div $ do
+    H.h2 $ do
+      H.a
+      --TODO fix: has an extra /posts/
+        ! A.href (textValue (pack $ postPath p))
+        $ toHtml title
+    H.p
+      ! A.class_ "date"
+      $ toHtml $ formatTime defaultTimeLocale "%Y-%m-%d" time
+    H.p $ toHtml body
 
 newPostHtml :: Html
 newPostHtml =
@@ -96,18 +103,11 @@ newPostHtml =
         H.br
         H.input ! A.type_ "submit" ! A.value "Submit post"
 
-now :: IO String
-now = do
-  time <- getCurrentTime
-  return $ formatTime defaultTimeLocale "%Y-%m-%d" time
-
-
-tString :: FormatTime t => t -> String
-tString = formatTime defaultTimeLocale "%Y-%m-%d"
-
 tUnix :: FormatTime t => t -> String
 tUnix = formatTime defaultTimeLocale "%s"
 
+readPosts :: [FilePath] -> IO [Post]
+readPosts = mapM (fmap read . readFile)
 
 routes :: S.ScottyM()
 routes = do
@@ -122,17 +122,6 @@ routes = do
     mkPage homePage $ do
       H.h1 "Posts"
       mapM_ pToHtml posts
-
-  S.get "/test" $ do
-    S.html . renderHtml $ do
-      H.h1 "Test"
-
-  -- S.get "/posts" $ do
-  --   id <- liftIO $ fmap read $ readFile idFileName
-  --   posts <- liftIO $ readPosts [0..id]
-  --   S.html . renderHtml $ do
-  --     H.h1 "Posts"
-  --     mapM_ pToHtml posts
 
   S.get (pagePath newPostPage) $ do
     mkPage newPostPage $ do
@@ -152,9 +141,19 @@ routes = do
     let id = hash $ title
         p = Post id time title body
     -- liftIO $ writeFile idFileName (show (identifier + 1))
-    liftIO $ writeFile (pToPath p) (show p)
+    liftIO $ writeFile (postPath p) (show p)
     S.html .renderHtml $ do
       H.h1 $ "Success!!! "
 
-pToPath :: Post -> FilePath
-pToPath (Post i tm t b) = postDir <> "/" <> (tUnix tm) <> (show i)
+  -- S.get (pagePath posts) $ do
+  -- TODO all posts
+
+  S.get (pagePath postPage) $ do
+    postID <- S.param "postID"
+    liftIO $ print postID
+    post <- liftIO $ do
+       wd <- getCurrentDirectory
+       post <- withCurrentDirectory (wd </> postDir) . readPosts $ [postID]
+       return post
+    mkPage postPage $ do
+      mapM_ pToHtml post
