@@ -52,7 +52,7 @@ pagePath :: PageConfig -> S.RoutePattern
 pagePath (PageConfig _ a _) = S.capture $ unpack a
 
 postPath :: Post -> String
-postPath (Post i tm t b) = postDir <> "/" <> (tUnix tm) <> (show i)
+postPath (Post i tm t b) = postDir </> (tUnix tm) <> (show i)
 
 
 mkPage :: PageConfig -> Html -> S.ActionM ()
@@ -82,7 +82,7 @@ pToHtml p@(Post i time title body) =
     H.h2 $ do
       H.a
       --TODO fix: has an extra /posts/
-        ! A.href (textValue (pack $ postPath p))
+        ! A.href (textValue (pack $ "/" <> postPath p))
         $ toHtml title
     H.p
       ! A.class_ "date"
