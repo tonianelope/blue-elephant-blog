@@ -83,7 +83,9 @@ postToHtml p@(Post time title body) =
       H.h2 $ linkPost p
       H.div ! A.class_ "date"
         $ toHtml $ formatTime defaultTimeLocale "%Y-%m-%d" time
-      H.div ! A.class_ "body" $ toHtml body
+      H.div ! A.class_ "body" $
+        mconcat $ intercalate [H.br] $
+          fmap (pure . toHtml) $ T.splitOn "\n" $ pack body
 
 routes :: S.ScottyM()
 routes = do
