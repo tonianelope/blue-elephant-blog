@@ -146,10 +146,11 @@ readPosts = listDirectory postDir >>= mapM readPost
 readPost :: FilePath -> IO Post
 readPost = withPostDir . fmap read . readFile
 
+postHref :: Post -> AttributeValue
+postHref p = textValue $ pack $ "/posts/" <> postId p
+
 linkPost :: Post -> Html
-linkPost p@(Post _ title _) =
-  H.a ! A.href (textValue $ pack $ "/posts/" <> postId p)
-    $ toHtml title
+linkPost p@(Post _ title _) = H.a ! A.href (postHref p) $ toHtml title
 
 linkPage :: Page -> PageConfig -> Html
 linkPage currentPage (PageConfig page path text) =

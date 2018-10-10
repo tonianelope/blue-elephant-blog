@@ -20,6 +20,11 @@ a:hover {
 	text-shadow: 1em -1em;
 }
 
+.post:not(:hover) > h2 > a {
+	text-shadow: 1em -1em;
+	font-size: 0.5rem;
+}
+
 header > nav > a:hover,
 header > nav > a.current {
 	color: #eee;
@@ -63,6 +68,18 @@ header > nav > a {
 .post > .date {
 	margin: 5px 0 20px 10px;
 	color: #b44;
+}
+
+.post:nth-child(3n+0) {
+  background: #eec;
+}
+
+.post:nth-child(3n+1) {
+  background: #ece;
+}
+
+.post:nth-child(3n+2) {
+  background: #cee;
 }
 
 p {
