@@ -81,8 +81,3 @@ header > nav > a {
 .post:nth-child(3n+2) {
   background: #cee;
 }
-
-p {
-  animation-duration: 3s;
-  animation-name: slidein;
-}
