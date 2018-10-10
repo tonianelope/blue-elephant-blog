@@ -1,0 +1,37 @@
+body {
+	font-family: sans-serif;
+	margin: 0;
+	background-color: #eee;
+}
+
+.main {
+	margin: 20px;
+}
+
+a {
+	color: #000;
+}
+
+header > nav > a:hover,
+header > nav > a.current {
+	color: #eee;
+	background-color: #333;
+}
+
+header > nav > a {
+	padding: 20px;
+	display: inline-block;
+}
+
+textarea {
+	width: 600px;
+	height: 300px;
+}
+
+textarea:first-child {
+	height: 100px;
+}
+
+.post {
+	border-top: 5px solid rgba(0,0,0,0.2);
+}

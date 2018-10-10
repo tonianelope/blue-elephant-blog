@@ -15,6 +15,7 @@ import System.FilePath
 import Text.Blaze.Html
 import Text.Blaze.Html.Renderer.Text
 import qualified Data.Text.IO as T
+import qualified Data.Text.Lazy as L
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import qualified Web.Scotty as S
@@ -56,6 +57,10 @@ mkPage (PageConfig page _ title) body =
     H.head $ do
       H.title $ toHtml title
       -- TODO link style sheet
+      H.link
+        ! A.rel "stylesheet"
+        ! A.type_ "text/css"
+        ! A.href "/style.css"
     H.body $
       H.div ! A.class_ "main" $ do
         header page
@@ -112,7 +117,7 @@ routes = do
     S.html .renderHtml $ do
       H.h1 $ "Success!!! "
 
-  -- TODO make list 
+  -- TODO make list
   S.get (pagePath allPostsPage) $ do
     posts <- liftIO $ readPosts
     mkPage allPostsPage $ do
@@ -128,6 +133,11 @@ routes = do
 
   S.get (pagePath loginPage) $ do
     mkPage loginPage $ H.p "nothing here"
+
+  S.get "/style.css" $ do
+    css <- liftIO $ T.readFile "./static/style.css"
+    S.text $ L.fromStrict css
+
 
 savePost :: Post -> IO ()
 savePost p= do
