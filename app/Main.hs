@@ -114,19 +114,19 @@ routes = do
     time <- liftIO $ getCurrentTime
     let p = Post time title body
     liftIO $ savePost p
-    S.html .renderHtml $ do
-      H.h1 $ "Success!!! "
+    --TODO error catching!
+    S.redirect "/"
 
-  -- TODO make list
+  -- TODO sort by date/display dates?
   S.get (pagePath allPostsPage) $ do
     posts <- liftIO $ readPosts
     mkPage allPostsPage $ do
       H.h1 "All posts"
-      mapM_ linkPost posts
+      H.ul $ do
+        mapM_ (H.li . linkPost) posts
 
   S.get (pagePath $ postPage "") $ do
     postID <- S.param "postID"
-    liftIO $ print postID
     post <- liftIO $ readPost postID
     mkPage (postPage "Test") $ do
       pToHtml post
@@ -173,6 +173,5 @@ linkPage currentPage (PageConfig page path text) =
 withPostDir :: IO a -> IO a
 withPostDir a = do
   cd <- getCurrentDirectory
-  print cd
   --abs <- makeAbsolute(postDir
   withCurrentDirectory (cd </> postDir) $ a
