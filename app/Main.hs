@@ -35,7 +35,7 @@ data Post = Post
 homePage        = PageConfig Home "/" "Home"
 allPostsPage    = PageConfig AllPosts "/posts" "All Posts"
 newPostPage     = PageConfig NewPost "/new-post" "New Post"
-postPage title  = PageConfig OnePost "/posts/:postID" title
+postPage        = PageConfig OnePost "/posts/:postID"
 loginPage       = PageConfig LogIn "/login" "Log In"
 
 pages = [ homePage
@@ -90,7 +90,7 @@ postToHtml p@(Post time title body) =
 routes :: S.ScottyM()
 routes = do
   S.get (pagePath homePage) $ do
-    posts <- liftIO $ readPosts
+    posts <- liftIO readPosts
     mkPage homePage $ do
       H.h1 "Posts"
       H.div ! A.class_ "posts" $
@@ -110,7 +110,7 @@ routes = do
   S.post (pagePath newPostPage) $ do
     title <- S.param "title"
     body <- S.param "body"
-    time <- liftIO $ getCurrentTime
+    time <- liftIO getCurrentTime
     let p = Post time title body
     liftIO $ savePost p
     --TODO error catching!
@@ -118,20 +118,17 @@ routes = do
 
   -- TODO sort by date/display dates?
   S.get (pagePath allPostsPage) $ do
-    posts <- liftIO $ readPosts
+    posts <- liftIO readPosts
     mkPage allPostsPage $ do
       H.h1 "All posts"
-      H.ul $ do
-        mapM_ (H.li . linkPost) posts
+      H.ul $ mapM_ (H.li . linkPost) posts
 
   S.get (pagePath $ postPage "") $ do
     postID <- S.param "postID"
     post <- liftIO $ readPost postID
-    mkPage (postPage "Test") $ do
-      postToHtml post
+    mkPage (postPage "Test") $ postToHtml post
 
-  S.get (pagePath loginPage) $ do
-    mkPage loginPage $ H.p "nothing here"
+  S.get (pagePath loginPage) $ mkPage loginPage $ H.p "nothing here"
 
   S.get "/style.css" $ do
     S.setHeader "Content-Type" "text/css"
@@ -167,4 +164,4 @@ withPostDir :: IO a -> IO a
 withPostDir a = do
   cd <- getCurrentDirectory
   --abs <- makeAbsolute(postDir
-  withCurrentDirectory (cd </> postDir) $ a
+  withCurrentDirectory (cd </> postDir) a
