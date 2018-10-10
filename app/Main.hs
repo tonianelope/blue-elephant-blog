@@ -153,7 +153,7 @@ readPosts = do
   files <- listDirectory postDir
   mapM readPost files
 
--- TODO error handeling check file exists
+-- TODO error handling check file exists
 readPost :: FilePath -> IO Post
 readPost = withPostDir . fmap read . readFile
 
