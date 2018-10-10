@@ -8,8 +8,16 @@ body {
 	background-color: #eee;
 }
 
+body * {
+	transition: all 0.3s;
+}
+
 a {
 	color: #000;
+}
+
+a:hover {
+	text-shadow: 1em -1em;
 }
 
 header > nav > a:hover,
@@ -36,8 +44,12 @@ header > nav > a {
 .post {
 	max-width: 500px;
 	padding: 20px 40px;
-	border-bottom: 1px solid #000;
-	border-top: 1px solid #000;
+	border: 1px solid;
+	border-color: #000 transparent;
+}
+
+.post:hover {
+	border-color: #000;
 }
 
 .post + .post{
@@ -51,4 +63,9 @@ header > nav > a {
 .post > .date {
 	margin: 5px 0 20px 10px;
 	color: #b44;
+}
+
+p {
+  animation-duration: 3s;
+  animation-name: slidein;
 }
