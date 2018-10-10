@@ -2,6 +2,7 @@
 module Main( main) where
 
 import Control.Monad.IO.Class
+import Control.Applicative
 import Data.Hashable
 import Data.List
 import Data.Monoid
@@ -45,7 +46,7 @@ postDir = "posts"
 main :: IO ()
 main = do
   -- TODO add css
-  createDirectory postDir
+  createDirectory postDir <|> pure ()
   putStrLn "Starting Server..."
   S.scotty 3000 routes
 
