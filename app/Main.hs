@@ -136,7 +136,7 @@ savePost :: Post -> IO ()
 savePost p = withPostDir $ writeFile (postId p) (show p)
 
 postId :: Post -> String
-postId (Post time title body) =
+postId (Post _ title _) =
   show $ hash title
 
 readPosts :: IO [Post]
