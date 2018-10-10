@@ -32,11 +32,11 @@ data Post = Post
   , body  :: String
   } deriving (Read, Show)
 
-homePage        = PageConfig Home "/" "Home"
-allPostsPage    = PageConfig AllPosts "/posts" "All Posts"
-newPostPage     = PageConfig NewPost "/new-post" "New Post"
-postPage        = PageConfig OnePost "/posts/:postID"
-loginPage       = PageConfig LogIn "/login" "Log In"
+homePage     = PageConfig Home "/" "Home"
+allPostsPage = PageConfig AllPosts "/posts" "All Posts"
+newPostPage  = PageConfig NewPost "/new-post" "New Post"
+postPage     = PageConfig OnePost "/posts/:postID"
+loginPage    = PageConfig LogIn "/login" "Log In"
 
 pages = [ homePage
         , allPostsPage
