@@ -75,12 +75,13 @@ header page = H.header $ H.nav $ mconcat $ fmap (linkPage page) pages
 
 postToHtml :: Post -> Html
 postToHtml p@(Post time title body) =
-  H.div $ do
-    H.h2 $ linkPost p
-    H.p
-      ! A.class_ "date"
-      $ toHtml $ formatTime defaultTimeLocale "%Y-%m-%d" time
-    H.p $ toHtml body
+  H.div
+    ! A.class_ "post" $ do
+      H.h2 $ linkPost p
+      H.p
+        ! A.class_ "date"
+        $ toHtml $ formatTime defaultTimeLocale "%Y-%m-%d" time
+      H.p $ toHtml body
 
 routes :: S.ScottyM()
 routes = do
