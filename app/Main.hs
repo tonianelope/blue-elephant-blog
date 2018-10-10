@@ -136,8 +136,7 @@ savePost :: Post -> IO ()
 savePost p = withPostDir $ writeFile (postId p) (show p)
 
 postId :: Post -> String
-postId (Post _ title _) =
-  show $ hash title
+postId (Post _ title _) = show $ hash title
 
 readPosts :: IO [Post]
 readPosts = listDirectory postDir >>= mapM readPost
@@ -154,10 +153,10 @@ linkPost p@(Post _ title _) =
 
 linkPage :: Page -> PageConfig -> Html
 linkPage currentPage (PageConfig page path text) =
-      H.a
-        ! A.href (textValue path)
-        ! A.class_ (if page == currentPage then "current" else "")
-        $ toHtml text
+  H.a
+    ! A.href (textValue path)
+    ! A.class_ (if page == currentPage then "current" else "")
+    $ toHtml text
 
 withPostDir :: IO a -> IO a
 withPostDir a = do
