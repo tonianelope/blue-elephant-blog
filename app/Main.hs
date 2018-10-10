@@ -45,6 +45,7 @@ postDir = "posts"
 main :: IO ()
 main = do
   -- TODO add css
+  createDirectory postDir
   putStrLn "Starting Server..."
   S.scotty 3000 routes
 
@@ -70,8 +71,8 @@ header :: Page -> Html
 header page =
   H.header $ H.nav $ mconcat $ fmap (linkPage page) pages
 
-pToHtml :: Post -> Html
-pToHtml p@(Post time title body) =
+postToHtml :: Post -> Html
+postToHtml p@(Post time title body) =
   H.div $ do
     H.h2 $ linkPost p
     H.p
@@ -93,18 +94,15 @@ newPostHtml =
         H.br
         H.input ! A.type_ "submit" ! A.value "Submit post"
 
-tUnix :: FormatTime t => t -> String
-tUnix = formatTime defaultTimeLocale "%s"
-
 routes :: S.ScottyM()
 routes = do
   S.get (pagePath homePage) $ do
     posts <- liftIO $ readPosts
     mkPage homePage $ do
       H.h1 "Posts"
-      mapM_ pToHtml posts
+      mapM_ postToHtml posts
 
-  --TODO only avaulable on login 
+  --TODO only available on login
   S.get (pagePath newPostPage) $ do
     mkPage newPostPage $ newPostHtml
 
@@ -129,7 +127,7 @@ routes = do
     postID <- S.param "postID"
     post <- liftIO $ readPost postID
     mkPage (postPage "Test") $ do
-      pToHtml post
+      postToHtml post
 
   S.get (pagePath loginPage) $ do
     mkPage loginPage $ H.p "nothing here"
@@ -138,9 +136,8 @@ routes = do
     css <- liftIO $ T.readFile "./static/style.css"
     S.text $ L.fromStrict css
 
-
 savePost :: Post -> IO ()
-savePost p= do
+savePost p = do
   withPostDir $ writeFile (postId p) (show p)
 
 postId :: Post -> String
