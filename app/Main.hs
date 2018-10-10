@@ -75,11 +75,9 @@ header page = H.header $ H.nav $ mconcat $ fmap (linkPage page) pages
 
 postToHtml :: Post -> Html
 postToHtml p@(Post time title body) =
-  H.div
-    ! A.class_ "post" $ do
+  H.div ! A.class_ "post" $ do
       H.h2 $ linkPost p
-      H.p
-        ! A.class_ "date"
+      H.p ! A.class_ "date"
         $ toHtml $ formatTime defaultTimeLocale "%Y-%m-%d" time
       H.p $ toHtml body
 
@@ -148,8 +146,7 @@ readPost = withPostDir . fmap read . readFile
 
 linkPost :: Post -> Html
 linkPost p@(Post _ title _) =
-  H.a
-    ! A.href (textValue $ pack $ "/posts/" <> postId p)
+  H.a ! A.href (textValue $ pack $ "/posts/" <> postId p)
     $ toHtml title
 
 linkPage :: Page -> PageConfig -> Html
