@@ -1,8 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main( main) where
 
-import Control.Monad.IO.Class
+import Cases
 import Control.Applicative
+import Control.Monad.IO.Class
+import Data.Char
 import Data.Hashable
 import Data.List
 import Data.Monoid
@@ -15,6 +17,7 @@ import System.Directory
 import System.FilePath
 import Text.Blaze.Html
 import Text.Blaze.Html.Renderer.Text
+import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as L
 import qualified Text.Blaze.Html5 as H
@@ -66,9 +69,10 @@ mkPage (PageConfig page _ title) body =
           ! A.type_ "text/css"
           ! A.href "/style.css"
       H.body $
-        H.div ! A.class_ "main" $ do
-          header page
-          body
+        H.div ! A.class_ (textValue $ spinalize title)
+          $ do
+            header page
+            body
 
 header :: Page -> Html
 header page = H.header $ H.nav $ mconcat $ fmap (linkPage page) pages
@@ -77,9 +81,9 @@ postToHtml :: Post -> Html
 postToHtml p@(Post time title body) =
   H.div ! A.class_ "post" $ do
       H.h2 $ linkPost p
-      H.p ! A.class_ "date"
+      H.div ! A.class_ "date"
         $ toHtml $ formatTime defaultTimeLocale "%Y-%m-%d" time
-      H.p $ toHtml body
+      H.div ! A.class_ "body" $ toHtml body
 
 routes :: S.ScottyM()
 routes = do
@@ -87,7 +91,8 @@ routes = do
     posts <- liftIO $ readPosts
     mkPage homePage $ do
       H.h1 "Posts"
-      mapM_ postToHtml posts
+      H.div ! A.class_ "posts" $
+        mapM_ postToHtml posts
 
   --TODO only available on login
   S.get (pagePath newPostPage) $

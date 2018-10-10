@@ -29,6 +29,7 @@ dependencies:
 - filepath
 - time
 - hashable
+- cases
 
 executables:
   blue-elephant-blog:
