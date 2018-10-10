@@ -23,23 +23,25 @@ header > nav > a {
 	display: inline-block;
 }
 
-textarea {
+.new-post textarea {
+	display: block;
+	height: 100px;
 	width: 600px;
-	height: 300px;
 }
 
-textarea:first-child {
-	height: 100px;
+.new-post textarea + textarea{
+	height: 300px;
 }
 
 .post {
 	max-width: 500px;
 	padding: 20px 40px;
 	border-bottom: 1px solid #000;
+	border-top: 1px solid #000;
 }
 
-.post:first-child {
-	border-top: 1px solid #000;
+.post + .post{
+	border-top: 0;
 }
 
 .post > h2 {

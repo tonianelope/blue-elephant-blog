@@ -102,9 +102,7 @@ routes = do
       H.h1 "New post"
       H.form ! A.method "post" $ do
         H.textarea ! A.name "title" $ "Blog post Title"
-        H.br
         H.textarea ! A.name "body" $ "Blog post Body"
-        H.br
         H.input ! A.type_ "submit" ! A.value "Submit post"
 
   S.post (pagePath newPostPage) $ do
