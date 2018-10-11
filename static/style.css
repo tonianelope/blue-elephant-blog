@@ -1,15 +1,29 @@
+h1 {
+  margin: 40px 0;
+}
+
 body {
 	font-family: sans-serif;
-	margin: 0;
+	margin: 20px;
 	background-color: #eee;
 }
 
-.main {
-	margin: 20px;
+body * {
+	transition: all 0.3s;
 }
 
 a {
 	color: #000;
+}
+
+.post:not(:hover) > h2 > a {
+	text-shadow: 1em -1em;
+	font-size: 0.5rem;
+}
+
+header > nav > a {
+	padding: 2em;
+	display: inline-block;
 }
 
 header > nav > a:hover,
@@ -18,20 +32,54 @@ header > nav > a.current {
 	background-color: #333;
 }
 
-header > nav > a {
-	padding: 20px;
-	display: inline-block;
+header > nav > a:hover {
+	text-shadow: -1em -1em;
+	box-shadow: 10px 10px #777;
+	filter: drop-shadow(10px 10px 0 #aaa);
 }
 
-textarea {
+.new-post textarea {
+	display: block;
+	height: 100px;
 	width: 600px;
+}
+
+.new-post textarea + textarea{
 	height: 300px;
 }
 
-textarea:first-child {
-	height: 100px;
+.post {
+	max-width: 500px;
+	padding: 20px 40px;
+	border: 1px solid;
+	border-color: #000 transparent;
 }
 
-.post {
-	border-top: 5px solid rgba(0,0,0,0.2);
+.post:hover {
+	border-color: #000;
+}
+
+.post + .post{
+	border-top: 0;
+}
+
+.post > h2 {
+	margin: 0;
+}
+
+.post > .date {
+	margin: 5px 0 20px 10px;
+	color: #b44;
+}
+
+.post:nth-child(3n+0) {
+  background: #eec;
+}
+
+.post:nth-child(3n+1) {
+  background: #ece;
+}
+
+.post:nth-child(3n+2) {
+  background: #cee;
 }
