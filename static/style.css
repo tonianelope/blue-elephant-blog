@@ -32,12 +32,6 @@ header > nav > a.current {
 	background-color: #333;
 }
 
-header > nav > a:hover:before {
-	text-shadow: 1em 1em;
-	box-shadow: -10px -10px #777;
-	filter: drop-shadow(10px 10px 0 #aaa);
-}
-
 header > nav > a:hover {
 	text-shadow: -1em -1em;
 	box-shadow: 10px 10px #777;
