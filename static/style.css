@@ -21,19 +21,27 @@ a {
 	font-size: 0.5rem;
 }
 
+header > nav > a {
+	padding: 2em;
+	display: inline-block;
+}
+
 header > nav > a:hover,
 header > nav > a.current {
 	color: #eee;
 	background-color: #333;
 }
 
-header > nav > a:hover {
-	box-shadow: 10px 10px #777;
+header > nav > a:hover:before {
+	text-shadow: 1em 1em;
+	box-shadow: -10px -10px #777;
+	filter: drop-shadow(10px 10px 0 #aaa);
 }
 
-header > nav > a {
-	padding: 20px;
-	display: inline-block;
+header > nav > a:hover {
+	text-shadow: -1em -1em;
+	box-shadow: 10px 10px #777;
+	filter: drop-shadow(10px 10px 0 #aaa);
 }
 
 .new-post textarea {
