@@ -32,7 +32,7 @@ dependencies:
 - time
 
 executables:
-  blue-elephant-blog:
+  bebe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:

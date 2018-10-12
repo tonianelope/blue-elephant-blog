@@ -87,6 +87,14 @@ postToHtml p@(Post time title body) =
         mconcat $ intercalate [H.br] $
           fmap (pure . toHtml) $ T.splitOn "\n" $ pack body
 
+loginHtml :: Html
+loginHtml =
+  H.html $ do
+    H.p "username"
+    H.input ! A.name "username"
+    H.p "password"
+    H.input ! A.type_ "password" ! A.name "password"
+
 routes :: S.ScottyM()
 routes = do
   S.get (pagePath homePage) $ do
@@ -112,7 +120,7 @@ routes = do
     let p = Post time title body
     liftIO $ savePost p
     --TODO error catching!
-    S.redirect "/"
+    S.redirect (postHref p)
 
   -- TODO sort by date/display dates?
   S.get (pagePath allPostsPage) $ do
@@ -126,7 +134,11 @@ routes = do
     post <- liftIO $ readPost postID
     mkPage (postPage "Test") $ postToHtml post
 
-  S.get (pagePath loginPage) $ mkPage loginPage $ H.p "nothing here"
+  S.get (pagePath loginPage) $ do
+    mkPage loginPage $ loginHtml
+
+  S.post (pagePath loginPage) $ do
+    mkPage loginPage $ "Post"
 
   S.get "/style.css" $ do
     S.setHeader "Content-Type" "text/css"
@@ -146,11 +158,11 @@ readPosts = listDirectory postDir >>= mapM readPost
 readPost :: FilePath -> IO Post
 readPost = withPostDir . fmap read . readFile
 
-postHref :: Post -> AttributeValue
-postHref p = textValue $ pack $ "/posts/" <> postId p
+postHref :: Post -> L.Text
+postHref p = L.pack $ "/posts/" <> postId p
 
 linkPost :: Post -> Html
-linkPost p@(Post _ title _) = H.a ! A.href (postHref p) $ toHtml title
+linkPost p@(Post _ title _) = H.a ! A.href (textValue $ L.toStrict (postHref p)) $ toHtml title
 
 linkPage :: Page -> PageConfig -> Html
 linkPage currentPage (PageConfig page path text) =
