@@ -13,6 +13,7 @@ import Data.String
 import Data.Text (unpack, pack, Text)
 import Data.Time
 import Data.Time.Format
+import Network.HTTP.Types.Status
 import System.Directory
 import System.FilePath
 import Text.Blaze.Html
@@ -23,6 +24,7 @@ import qualified Data.Text.Lazy as L
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import qualified Web.Scotty as S
+import qualified Web.Scotty.Cookie as SC
 
 data Page = Home | AllPosts | NewPost | OnePost | LogIn deriving Eq
 data PageConfig = PageConfig Page Text Text
@@ -45,6 +47,7 @@ pages = [ homePage
         ]
 
 postDir = "posts"
+auth = "auth"
 
 main :: IO ()
 main = do
@@ -63,7 +66,6 @@ mkPage (PageConfig page _ title) body =
     H.html $ do
       H.head $ do
         H.title $ toHtml title
-        -- TODO link style sheet
         H.link
           ! A.rel "stylesheet"
           ! A.type_ "text/css"
@@ -87,6 +89,16 @@ postToHtml p@(Post time title body) =
         mconcat $ intercalate [H.br] $
           fmap (pure . toHtml) $ T.splitOn "\n" $ pack body
 
+newPostForm :: Html
+newPostForm =
+  H.html $ do
+    H.h1 "New post"
+    H.form ! A.method "post" $ do
+      H.textarea ! A.name "title" $ "Blog post Title"
+      H.textarea ! A.name "body" $ "Blog post Body"
+      H.input ! A.type_ "submit" ! A.value "Submit post"
+
+
 loginHtml :: Html
 loginHtml =
   H.html $ do
@@ -105,13 +117,13 @@ routes = do
         mapM_ postToHtml posts
 
   --TODO only available on login
-  S.get (pagePath newPostPage) $
-    mkPage newPostPage $ do
-      H.h1 "New post"
-      H.form ! A.method "post" $ do
-        H.textarea ! A.name "title" $ "Blog post Title"
-        H.textarea ! A.name "body" $ "Blog post Body"
-        H.input ! A.type_ "submit" ! A.value "Submit post"
+  S.get (pagePath newPostPage) $ do
+    c <- SC.getCookie auth
+    case c of
+      Just _ -> mkPage newPostPage newPostForm
+      otherwise -> do
+        S.status status401
+        mkPage newPostPage $ H.h1 "Unathorised"
 
   S.post (pagePath newPostPage) $ do
     title <- S.param "title"
@@ -145,6 +157,11 @@ routes = do
     cd <- liftIO getCurrentDirectory
     S.file $ cd </> "static" </> "style.css"
 
+  S.get "/auth" $ do
+    S.status status401
+    S.html . renderHtml $ do
+      H.h1 "Unathorised"
+
 savePost :: Post -> IO ()
 savePost p = withPostDir $ writeFile (postId p) (show p)
 
@@ -174,5 +191,4 @@ linkPage currentPage (PageConfig page path text) =
 withPostDir :: IO a -> IO a
 withPostDir a = do
   cd <- getCurrentDirectory
-  --abs <- makeAbsolute(postDir
   withCurrentDirectory (cd </> postDir) a

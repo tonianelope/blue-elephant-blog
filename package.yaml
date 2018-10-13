@@ -27,7 +27,9 @@ dependencies:
 - directory
 - filepath
 - hashable
+- http-types
 - scotty
+- scotty-cookie
 - text
 - time
 
