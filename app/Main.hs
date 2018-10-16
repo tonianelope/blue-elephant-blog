@@ -131,7 +131,7 @@ routes = do
     mkPage homePage $ do
       H.h1 "Posts"
       H.div ! A.class_ "posts" $
-        mapM_ postToHtml posts
+        mapM_ postToHtml $ take 5 posts
 
   --TODO only available on login
   S.get (pagePath newPostPage) $ do
