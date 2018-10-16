@@ -10,7 +10,7 @@ import Data.List
 import Data.Monoid
 import Data.Ord
 import Data.String
-import Data.Text (unpack, pack, Text)
+import Data.Text (splitOn, unpack, pack, Text)
 import Data.Time
 import Data.Time.Format
 import Network.HTTP.Types.Status
@@ -18,6 +18,7 @@ import System.Directory
 import System.FilePath
 import Text.Blaze.Html
 import Text.Blaze.Html.Renderer.Text
+import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as L
@@ -26,7 +27,7 @@ import qualified Text.Blaze.Html5.Attributes as A
 import qualified Web.Scotty as S
 import qualified Web.Scotty.Cookie as SC
 
-data Page = Home | AllPosts | NewPost | OnePost | LogIn deriving Eq
+data Page = Home | AllPosts | NewPost | OnePost | LogIn | LogOut deriving Eq
 data PageConfig = PageConfig Page Text Text
 data Post = Post
   { date  :: UTCTime
@@ -39,12 +40,18 @@ allPostsPage = PageConfig AllPosts "/posts" "All Posts"
 newPostPage  = PageConfig NewPost "/new-post" "New Post"
 postPage     = PageConfig OnePost "/posts/:postID"
 loginPage    = PageConfig LogIn "/login" "Log In"
+logoutPage    = PageConfig LogOut "/logout" "Logout"
 
-pages = [ homePage
+defPages = [ homePage
         , allPostsPage
-        , newPostPage
         , loginPage
         ]
+
+userPages = [ homePage
+            , allPostsPage
+            , newPostPage
+            , logoutPage
+            ]
 
 postDir = "posts"
 auth = "auth"
@@ -60,7 +67,9 @@ pagePath :: PageConfig -> S.RoutePattern
 pagePath (PageConfig _ a _) = S.capture $ unpack a
 
 mkPage :: PageConfig -> Html -> S.ActionM ()
-mkPage (PageConfig page _ title) body =
+mkPage (PageConfig page _ title) body = do
+  auth <- validCookie
+  let pages = if auth then userPages else defPages
   S.html . renderHtml $ do
     H.docType
     H.html $ do
@@ -73,11 +82,19 @@ mkPage (PageConfig page _ title) body =
       H.body $
         H.div ! A.class_ (textValue $ spinalize title)
           $ do
-            header page
+            header page pages
             body
 
-header :: Page -> Html
-header page = H.header $ H.nav $ mconcat $ fmap (linkPage page) pages
+-- point free?
+header :: Page -> [PageConfig] -> Html
+header page pages = H.header $ H.nav $ mconcat $ fmap (linkPage page) pages
+
+validCookie :: S.ActionM Bool
+validCookie = do
+  c <- SC.getCookie auth
+  case c of
+    Just _ -> return True
+    otherwise -> return False
 
 postToHtml :: Post -> Html
 postToHtml p@(Post time title body) =
@@ -87,7 +104,7 @@ postToHtml p@(Post time title body) =
         $ toHtml $ formatTime defaultTimeLocale "%Y-%m-%d" time
       H.div ! A.class_ "body" $
         mconcat $ intercalate [H.br] $
-          fmap (pure . toHtml) $ T.splitOn "\n" $ pack body
+          fmap (pure . toHtml) $ splitOn "\n" $ pack body
 
 newPostForm :: Html
 newPostForm =
@@ -102,10 +119,10 @@ newPostForm =
 loginHtml :: Html
 loginHtml =
   H.html $ do
-    H.p "username"
-    H.input ! A.name "username"
-    H.p "password"
-    H.input ! A.type_ "password" ! A.name "password"
+    H.form ! A.method "post" $ do
+      H.input ! A.name "username" ! A.placeholder "username"
+      H.input ! A.type_ "password" ! A.name "password" ! A.placeholder "password"
+      H.button ! A.type_ "submit" $ "login"
 
 routes :: S.ScottyM()
 routes = do
@@ -150,17 +167,23 @@ routes = do
     mkPage loginPage $ loginHtml
 
   S.post (pagePath loginPage) $ do
-    mkPage loginPage $ "Post"
+    user <- S.param "username"
+    pass <- S.param "password"
+    if user == ("me"::String) && pass == ("me"::String)
+      then do
+        SC.setSimpleCookie auth $ pack $ show (hash ("me"::String))
+        S.redirect "/"
+      else mkPage loginPage $
+        ( H.p ! A.class_ "error" $ "Invalid username/password" >> loginHtml)
+
+  S.get (pagePath logoutPage) $ do
+    SC.deleteCookie auth
+    S.redirect "/"
 
   S.get "/style.css" $ do
     S.setHeader "Content-Type" "text/css"
     cd <- liftIO getCurrentDirectory
     S.file $ cd </> "static" </> "style.css"
-
-  S.get "/auth" $ do
-    S.status status401
-    S.html . renderHtml $ do
-      H.h1 "Unathorised"
 
 savePost :: Post -> IO ()
 savePost p = withPostDir $ writeFile (postId p) (show p)

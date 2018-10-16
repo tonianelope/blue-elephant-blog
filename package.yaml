@@ -24,6 +24,7 @@ dependencies:
 - blaze-html
 - blaze-markup
 - cases
+- containers
 - directory
 - filepath
 - hashable
