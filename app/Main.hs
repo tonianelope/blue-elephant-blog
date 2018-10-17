@@ -188,8 +188,9 @@ routes = do
 savePost :: Post -> IO ()
 savePost p = withPostDir $ writeFile (postId p) (show p)
 
+-- easy way of changin post id (used for file & url)
 postId :: Post -> String
-postId (Post _ title _) = show $ hash title
+postId (Post date title _) = (formatTime defaultTimeLocale "%Y-%m-%d-" date) ++ title
 
 readPosts :: IO [Post]
 readPosts = listDirectory postDir >>= mapM readPost
