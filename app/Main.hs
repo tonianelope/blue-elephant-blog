@@ -25,8 +25,8 @@ import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as L
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
-import qualified Web.Scotty as S
-import qualified Web.Scotty.Cookie as SC
+import Web.Scotty hiding (header)
+import Web.Scotty.Cookie
 
 data Page = Home | AllPosts | NewPost | OnePost | LogIn | LogOut deriving Eq
 data PageConfig = PageConfig Page Text Text
@@ -62,16 +62,16 @@ main = do
   -- TODO add css
   createDirectory postDir <|> pure ()
   putStrLn "Starting Server..."
-  S.scotty 3000 routes
+  scotty 3000 routes
 
-pagePath :: PageConfig -> S.RoutePattern
-pagePath (PageConfig _ a _) = S.capture $ unpack a
+pagePath :: PageConfig ->  RoutePattern
+pagePath (PageConfig _ a _) =  capture $ unpack a
 
-mkPage :: PageConfig -> Html -> S.ActionM ()
+mkPage :: PageConfig -> Html ->  ActionM ()
 mkPage (PageConfig page _ title) body = do
   auth <- validCookie
   let pages = if auth then userPages else defPages
-  S.html . renderHtml $ do
+  html . renderHtml $ do
     H.docType
     H.html $ do
       H.head $ do
@@ -90,9 +90,9 @@ mkPage (PageConfig page _ title) body = do
 header :: Page -> [PageConfig] -> Html
 header page pages = H.header $ H.nav $ mconcat $ fmap (linkPage page) pages
 
-validCookie :: S.ActionM Bool
+validCookie ::  ActionM Bool
 validCookie = do
-  c <- SC.getCookie auth
+  c <- getCookie auth
   case c of
     Just _ -> return True
     otherwise -> return False
@@ -125,65 +125,65 @@ loginHtml =
       H.input ! A.type_ "password" ! A.name "password" ! A.placeholder "password"
       H.button ! A.type_ "submit" $ "login"
 
-routes :: S.ScottyM()
+routes ::  ScottyM()
 routes = do
-  S.get (pagePath homePage) $ do
+  get (pagePath homePage) $ do
     posts <- liftIO readPosts
     mkPage homePage $ do
       H.h1 "Posts"
       H.div ! A.class_ "posts" $
         mapM_ postToHtml $ take 5 posts
 
-  S.get (pagePath newPostPage) $ do
-    c <- SC.getCookie auth
+  get (pagePath newPostPage) $ do
+    c <- getCookie auth
     case c of
       Just _ -> mkPage newPostPage newPostForm
       otherwise -> do
-        S.status status401
+        status status401
         mkPage newPostPage $ H.h1 "Unathorised"
 
-  S.post (pagePath newPostPage) $ do
-    title <- S.param "title"
-    body <- S.param "body"
+  post (pagePath newPostPage) $ do
+    title <-  param "title"
+    body <-  param "body"
     time <- liftIO getCurrentTime
     let p = Post time title body
-    S.liftAndCatchIO $ savePost p
+    liftAndCatchIO $ savePost p
     --TODO error catching!
-    S.redirect (postHref p)
+    redirect (postHref p)
 
   -- TODO sort by date/display dates?
-  S.get (pagePath allPostsPage) $ do
+  get (pagePath allPostsPage) $ do
     posts <- liftIO readPosts
     mkPage allPostsPage $ do
       H.h1 "All posts"
       H.ul $ mapM_ (H.li . linkPost) posts
 
-  S.get (pagePath $ postPage "") $ do
-    postID <- S.param "postID"
+  get (pagePath $ postPage "") $ do
+    postID <-  param "postID"
     post <- liftIO $ readPost postID
     mkPage (postPage "Test") $ postToHtml post
 
-  S.get (pagePath loginPage) $ do
+  get (pagePath loginPage) $ do
     mkPage loginPage $ loginHtml
 
-  S.post (pagePath loginPage) $ do
-    user <- S.param "username"
-    pass <- S.param "password"
+  post (pagePath loginPage) $ do
+    user <-  param "username"
+    pass <-  param "password"
     if user == ("me"::String) && pass == ("me"::String)
       then do
-        SC.setSimpleCookie auth $ pack $ show (hash ("me"::String))
-        S.redirect "/"
+        setSimpleCookie auth $ pack $ show (hash ("me"::String))
+        redirect "/"
       else mkPage loginPage $
         ( H.p ! A.class_ "error" $ "Invalid username/password" >> loginHtml)
 
-  S.get (pagePath logoutPage) $ do
-    SC.deleteCookie auth
-    S.redirect "/"
+  get (pagePath logoutPage) $ do
+    deleteCookie auth
+    redirect "/"
 
-  S.get "/style.css" $ do
-    S.setHeader "Content-Type" "text/css"
+  get "/style.css" $ do
+    setHeader "Content-Type" "text/css"
     cd <- liftIO getCurrentDirectory
-    S.file $ cd </> "static" </> "style.css"
+    file $ cd </> "static" </> "style.css"
 
 savePost :: Post -> IO ()
 savePost p = withPostDir $ do
