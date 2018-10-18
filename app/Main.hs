@@ -3,6 +3,7 @@ module Main( main) where
 
 import Cases
 import Control.Applicative
+import Control.Monad
 import Control.Monad.IO.Class
 import Data.Char
 import Data.Hashable
@@ -133,7 +134,6 @@ routes = do
       H.div ! A.class_ "posts" $
         mapM_ postToHtml $ take 5 posts
 
-  --TODO only available on login
   S.get (pagePath newPostPage) $ do
     c <- SC.getCookie auth
     case c of
@@ -147,7 +147,7 @@ routes = do
     body <- S.param "body"
     time <- liftIO getCurrentTime
     let p = Post time title body
-    liftIO $ savePost p
+    S.liftAndCatchIO $ savePost p
     --TODO error catching!
     S.redirect (postHref p)
 
@@ -186,7 +186,11 @@ routes = do
     S.file $ cd </> "static" </> "style.css"
 
 savePost :: Post -> IO ()
-savePost p = withPostDir $ writeFile (postId p) (show p)
+savePost p = withPostDir $ do
+  dublicate <- doesFileExist (postId p)
+  if (not dublicate)
+    then writeFile (postId p) (show p)
+    else fail "Duplicate post title"
 
 -- easy way of changin post id (used for file & url)
 postId :: Post -> String
