@@ -29,10 +29,12 @@ dependencies:
 - filepath
 - hashable
 - http-types
+- safe
 - scotty
 - scotty-cookie
 - text
 - time
+- wai-middleware-static
 
 executables:
   bebe:

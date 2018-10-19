@@ -8,6 +8,7 @@ import Control.Monad.IO.Class
 import Data.Char
 import Data.Hashable
 import Data.List
+import Data.Maybe
 import Data.Monoid
 import Data.Ord
 import Data.String
@@ -15,33 +16,37 @@ import Data.Text (splitOn, unpack, pack, Text)
 import Data.Time
 import Data.Time.Format
 import Network.HTTP.Types.Status
+import Network.Wai.Middleware.Static hiding ((<|>))
 import System.Directory
 import System.FilePath
-import Text.Blaze.Html
+import Text.Blaze.Html hiding (text)
 import Text.Blaze.Html.Renderer.Text
+import Text.Read (readMaybe)
+import Web.Scotty hiding (header)
+import Web.Scotty.Cookie
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as L
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
-import Web.Scotty hiding (header)
-import Web.Scotty.Cookie
 
 data Page = Home | AllPosts | NewPost | OnePost | LogIn | LogOut deriving Eq
 data PageConfig = PageConfig Page Text Text
+
 data Post = Post
   { date  :: UTCTime
   , title :: String
   , body  :: String
   } deriving (Read, Show)
 
+-- Define Pages and Config for the Header
 homePage     = PageConfig Home "/" "Home"
 allPostsPage = PageConfig AllPosts "/posts" "All Posts"
 newPostPage  = PageConfig NewPost "/new-post" "New Post"
 postPage     = PageConfig OnePost "/posts/:postID"
 loginPage    = PageConfig LogIn "/login" "Log In"
-logoutPage    = PageConfig LogOut "/logout" "Logout"
+logoutPage   = PageConfig LogOut "/logout" "Logout"
 
 defPages = [ homePage
         , allPostsPage
@@ -59,10 +64,14 @@ auth = "auth"
 
 main :: IO ()
 main = do
-  -- TODO add css
   createDirectory postDir <|> pure ()
   putStrLn "Starting Server..."
-  scotty 3000 routes
+  scotty 3000 $ do
+    middleware $ staticPolicy (noDots >-> addBase "static")
+    routes
+
+users :: M.Map String Int
+users = M.fromList [("me", 7205319831941986560)]
 
 pagePath :: PageConfig ->  RoutePattern
 pagePath (PageConfig _ a _) =  capture $ unpack a
@@ -86,16 +95,16 @@ mkPage (PageConfig page _ title) body = do
             header page pages
             body
 
--- point free?
 header :: Page -> [PageConfig] -> Html
 header page pages = H.header $ H.nav $ mconcat $ fmap (linkPage page) pages
 
 validCookie ::  ActionM Bool
 validCookie = do
-  c <- getCookie auth
-  case c of
-    Just _ -> return True
-    otherwise -> return False
+  cookie <- getCookie auth
+  case cookie of
+    Just c -> if elem c $ passwords then return True else return False
+    _      -> return False
+    where passwords = map (pack . show) $ M.elems users
 
 postToHtml :: Post -> Html
 postToHtml p@(Post time title body) =
@@ -125,6 +134,9 @@ loginHtml =
       H.input ! A.type_ "password" ! A.name "password" ! A.placeholder "password"
       H.button ! A.type_ "submit" $ "login"
 
+errorHtml :: Text -> Html
+errorHtml = (H.h3 ! A.class_ "error") . toHtml
+
 routes ::  ScottyM()
 routes = do
   get (pagePath homePage) $ do
@@ -132,7 +144,7 @@ routes = do
     mkPage homePage $ do
       H.h1 "Posts"
       H.div ! A.class_ "posts" $
-        mapM_ postToHtml $ take 5 posts
+        mapM_ postToHtml $ take 5 $ sortOn (Down . date) posts
 
   get (pagePath newPostPage) $ do
     c <- getCookie auth
@@ -140,50 +152,51 @@ routes = do
       Just _ -> mkPage newPostPage newPostForm
       otherwise -> do
         status status401
-        mkPage newPostPage $ H.h1 "Unathorised"
+        mkPage newPostPage $ errorHtml "Unathorised. Login to access"
 
   post (pagePath newPostPage) $ do
     title <-  param "title"
     body <-  param "body"
     time <- liftIO getCurrentTime
     let p = Post time title body
-    liftAndCatchIO $ savePost p
-    --TODO error catching!
-    redirect (postHref p)
+    dublicate <- liftIO $ withPostDir $ doesFileExist (postId p)
+    if (not dublicate)
+      then do liftIO $ savePost p
+              redirect $ postHref p
+      else mkPage newPostPage $ errorHtml "Duplicate post title" <> newPostForm
 
-  -- TODO sort by date/display dates?
   get (pagePath allPostsPage) $ do
     posts <- liftIO readPosts
     mkPage allPostsPage $ do
       H.h1 "All posts"
-      H.ul $ mapM_ (H.li . linkPost) posts
+      H.ul $ mapM_ (H.li . linkPost) $ sortOn (Down . date) posts
 
   get (pagePath $ postPage "") $ do
-    postID <-  param "postID"
-    post <- liftIO $ readPost postID
-    mkPage (postPage "Test") $ postToHtml post
-
-  get (pagePath loginPage) $ do
-    mkPage loginPage $ loginHtml
-
-  post (pagePath loginPage) $ do
-    user <-  param "username"
-    pass <-  param "password"
-    if user == ("me"::String) && pass == ("me"::String)
-      then do
-        setSimpleCookie auth $ pack $ show (hash ("me"::String))
-        redirect "/"
-      else mkPage loginPage $
-        ( H.p ! A.class_ "error" $ "Invalid username/password" >> loginHtml)
+    postID <-  param "postID" `rescue` (\_ -> return "nopost")
+    post <- liftIO $ readPost postID <|> pure Nothing
+    mkPage (postPage "Test") $
+      case post of
+        Nothing -> errorHtml "This is not the post you are looking for"
+        Just p  -> postToHtml p
 
   get (pagePath logoutPage) $ do
     deleteCookie auth
     redirect "/"
 
-  get "/style.css" $ do
-    setHeader "Content-Type" "text/css"
-    cd <- liftIO getCurrentDirectory
-    file $ cd </> "static" </> "style.css"
+  get (pagePath loginPage) $ do
+    mkPage loginPage $ loginHtml
+
+  post (pagePath loginPage) $ do
+    user <- param "username" `rescue` (\_ -> return "")
+    pass <- unpack <$> param "password" `rescue` (\_ -> return "")
+    case users M.!? user of
+      Just p -> if p == hash pass then authorise p else showError
+      _      -> showError
+      where
+        showError = mkPage loginPage $ errorHtml "Invalid username/password" <> loginHtml
+        authorise p = do
+          setSimpleCookie auth $ pack $ show p
+          redirect "/"
 
 savePost :: Post -> IO ()
 savePost p = withPostDir $ do
@@ -197,11 +210,13 @@ postId :: Post -> String
 postId (Post date title _) = (formatTime defaultTimeLocale "%Y-%m-%d-" date) ++ title
 
 readPosts :: IO [Post]
-readPosts = listDirectory postDir >>= mapM readPost
+readPosts = do
+  files <- listDirectory postDir
+  posts <- mapM readPost files <|> pure [Nothing]
+  return $ catMaybes posts
 
--- TODO error handling check file exists
-readPost :: FilePath -> IO Post
-readPost = withPostDir . fmap read . readFile
+readPost :: FilePath -> IO (Maybe Post)
+readPost = withPostDir . fmap readMaybe . readFile
 
 postHref :: Post -> L.Text
 postHref p = L.pack $ "/posts/" <> postId p
